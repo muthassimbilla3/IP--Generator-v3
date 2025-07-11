@@ -31,6 +31,11 @@ export const Admin: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showUploadProgress, setShowUploadProgress] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadStats, setUploadStats] = useState({
+    totalProcessed: 0,
+    successCount: 0,
+    duplicateCount: 0
+  });
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -89,6 +94,7 @@ export const Admin: React.FC = () => {
     setShowUploadProgress(true);
     setUploadProgress(0);
     setUploadComplete(false);
+    setUploadStats({ totalProcessed: 0, successCount: 0, duplicateCount: 0 });
     setLoading(true);
     
     try {
@@ -106,15 +112,29 @@ export const Admin: React.FC = () => {
         return;
       }
 
-      // Insert proxies with progress tracking
+      // Insert proxies with progress tracking and duplicate detection
       const totalProxies = proxies.length;
       let processedCount = 0;
+      let successCount = 0;
+      let duplicateCount = 0;
       
       for (const proxy of proxies) {
         try {
-          await supabase.from('proxies').insert({
+          const { error } = await supabase.from('proxies').insert({
             proxy_string: proxy.trim()
           });
+          
+          if (error) {
+            // Check if it's a duplicate error (unique constraint violation)
+            if (error.code === '23505' || error.message.includes('duplicate') || error.message.includes('unique')) {
+              duplicateCount++;
+            } else {
+              console.error('Error inserting proxy:', proxy, error);
+            }
+          } else {
+            successCount++;
+          }
+          
           processedCount++;
           
           // Update progress (20% to 80% for proxy insertion)
@@ -126,9 +146,18 @@ export const Admin: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 50));
           }
         } catch (error) {
-          console.error('Error inserting proxy:', proxy, error);
+          // Handle any other errors
+          duplicateCount++;
+          processedCount++;
         }
       }
+
+      // Update stats
+      setUploadStats({
+        totalProcessed: totalProxies,
+        successCount,
+        duplicateCount
+      });
 
       setUploadProgress(85);
       
@@ -136,7 +165,7 @@ export const Admin: React.FC = () => {
       await supabase.from('upload_history').insert({
         uploaded_by: user.id,
         file_name: file.name,
-        proxy_count: proxies.length,
+        proxy_count: successCount, // Only count successfully inserted proxies
         position: 'append'
       });
 
@@ -147,10 +176,15 @@ export const Admin: React.FC = () => {
       setUploadProgress(100);
       setUploadComplete(true);
       
-      toast.success(`🎉 সফলভাবে ${proxies.length}টি প্রক্সি আপলোড সম্পন্ন হয়েছে!`);
-      toast.success(`🎉 Successfully uploaded ${proxies.length} proxies!`);
+      // Show appropriate success message
+      if (duplicateCount > 0) {
+        toast.success(`🎉 ${successCount}টি নতুন IP যোগ হয়েছে! ${duplicateCount}টি ডুপ্লিকেট পাওয়া গেছে।`);
+      } else {
+        toast.success(`🎉 সফলভাবে ${successCount}টি IP আপলোড সম্পন্ন হয়েছে!`);
+      }
+      
       setFile(null);
-      setLastUploadCount(proxies.length);
+      setLastUploadCount(successCount);
       setShowLimitWarning(true);
       fetchUploadHistory();
       fetchProxyCount();
@@ -723,6 +757,9 @@ export const Admin: React.FC = () => {
         progress={uploadProgress}
         isComplete={uploadComplete}
         fileName={file?.name}
+        duplicateCount={uploadStats.duplicateCount}
+        totalProcessed={uploadStats.totalProcessed}
+        successCount={uploadStats.successCount}
       />
     </div>
   );
