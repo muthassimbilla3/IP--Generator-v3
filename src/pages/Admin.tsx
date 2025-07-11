@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase, UploadHistory, User } from '../lib/supabase';
 import { Upload, Trash2, Users, Settings, Plus, Minus, Edit2, Key, RotateCcw, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
+import LimitWarningModal from '../components/LimitWarningModal';
 
 export const Admin: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +25,8 @@ export const Admin: React.FC = () => {
     dailyLimit: 0
   });
   const [totalProxies, setTotalProxies] = useState(0);
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [lastUploadCount, setLastUploadCount] = useState(0);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -107,6 +110,8 @@ export const Admin: React.FC = () => {
       toast.success(`🎉 সফলভাবে ${proxies.length}টি প্রক্সি আপলোড সম্পন্ন হয়েছে!`);
       toast.success(`🎉 Successfully uploaded ${proxies.length} proxies!`);
       setFile(null);
+      setLastUploadCount(proxies.length);
+      setShowLimitWarning(true);
       fetchUploadHistory();
       fetchProxyCount();
     } catch (error) {
@@ -656,6 +661,13 @@ export const Admin: React.FC = () => {
         </div>
         )}
       </div>
+
+      {/* Limit Warning Modal */}
+      <LimitWarningModal
+        isOpen={showLimitWarning}
+        onClose={() => setShowLimitWarning(false)}
+        uploadedCount={lastUploadCount}
+      />
     </div>
   );
 };
