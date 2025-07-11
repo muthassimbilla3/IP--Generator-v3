@@ -178,7 +178,11 @@ export const Admin: React.FC = () => {
       
       // Show appropriate success message
       if (duplicateCount > 0) {
-        toast.success(`🎉 ${successCount}টি নতুন IP যোগ হয়েছে! ${duplicateCount}টি ডুপ্লিকেট পাওয়া গেছে।`);
+        if (successCount > 0) {
+          toast.success(`🎉 ${successCount}টি নতুন IP যোগ হয়েছে! ${duplicateCount}টি ডুপ্লিকেট পাওয়া গেছে।`);
+        } else {
+          toast.error(`⚠️ সব IP ডুপ্লিকেট! ${duplicateCount}টি IP আগে থেকেই ডাটাবেসে আছে।`);
+        }
       } else {
         toast.success(`🎉 সফলভাবে ${successCount}টি IP আপলোড সম্পন্ন হয়েছে!`);
       }
