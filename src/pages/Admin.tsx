@@ -4,6 +4,7 @@ import { supabase, UploadHistory, User } from '../lib/supabase';
 import { Upload, Trash2, Users, Settings, Plus, Minus, Edit2, Key, RotateCcw, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LimitWarningModal from '../components/LimitWarningModal';
+import UploadProgressModal from '../components/UploadProgressModal';
 
 export const Admin: React.FC = () => {
   const { user } = useAuth();
@@ -27,6 +28,9 @@ export const Admin: React.FC = () => {
   const [totalProxies, setTotalProxies] = useState(0);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [lastUploadCount, setLastUploadCount] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -81,24 +85,53 @@ export const Admin: React.FC = () => {
     e.preventDefault();
     if (!file || !user) return;
 
+    // Show upload progress modal
+    setShowUploadProgress(true);
+    setUploadProgress(0);
+    setUploadComplete(false);
     setLoading(true);
+    
     try {
+      // Simulate reading file progress
+      setUploadProgress(10);
       const text = await file.text();
+      setUploadProgress(20);
+      
       const proxies = text.split('\n').filter(line => line.trim());
 
       if (proxies.length === 0) {
         toast.error('ফাইলে কোনো বৈধ প্রক্সি নেই');
+        setShowUploadProgress(false);
         setLoading(false);
         return;
       }
 
-      // Insert proxies at the end (append)
+      // Insert proxies with progress tracking
+      const totalProxies = proxies.length;
+      let processedCount = 0;
+      
       for (const proxy of proxies) {
-        await supabase.from('proxies').insert({
-          proxy_string: proxy.trim()
-        });
+        try {
+          await supabase.from('proxies').insert({
+            proxy_string: proxy.trim()
+          });
+          processedCount++;
+          
+          // Update progress (20% to 80% for proxy insertion)
+          const insertProgress = 20 + (processedCount / totalProxies) * 60;
+          setUploadProgress(insertProgress);
+          
+          // Small delay to show progress animation
+          if (processedCount % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        } catch (error) {
+          console.error('Error inserting proxy:', proxy, error);
+        }
       }
 
+      setUploadProgress(85);
+      
       // Record upload history
       await supabase.from('upload_history').insert({
         uploaded_by: user.id,
@@ -107,6 +140,13 @@ export const Admin: React.FC = () => {
         position: 'append'
       });
 
+      setUploadProgress(95);
+      
+      // Final steps
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setUploadProgress(100);
+      setUploadComplete(true);
+      
       toast.success(`🎉 সফলভাবে ${proxies.length}টি প্রক্সি আপলোড সম্পন্ন হয়েছে!`);
       toast.success(`🎉 Successfully uploaded ${proxies.length} proxies!`);
       setFile(null);
@@ -114,9 +154,17 @@ export const Admin: React.FC = () => {
       setShowLimitWarning(true);
       fetchUploadHistory();
       fetchProxyCount();
+      
+      // Hide upload progress after 2 seconds
+      setTimeout(() => {
+        setShowUploadProgress(false);
+        setUploadComplete(false);
+        setUploadProgress(0);
+      }, 2000);
     } catch (error) {
       toast.error('❌ Error uploading file');
       console.error('Error uploading file:', error);
+      setShowUploadProgress(false);
     }
     setLoading(false);
   };
@@ -667,6 +715,14 @@ export const Admin: React.FC = () => {
         isOpen={showLimitWarning}
         onClose={() => setShowLimitWarning(false)}
         uploadedCount={lastUploadCount}
+      />
+
+      {/* Upload Progress Modal */}
+      <UploadProgressModal
+        isOpen={showUploadProgress}
+        progress={uploadProgress}
+        isComplete={uploadComplete}
+        fileName={file?.name}
       />
     </div>
   );
