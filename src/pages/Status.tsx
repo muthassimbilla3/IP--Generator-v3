@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, User, UsageLog } from '../lib/supabase';
-import { Users, Activity, TrendingUp, Calendar, Database, Trash2 } from 'lucide-react';
+import { Users, Activity, TrendingUp, Database, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface UserStats {
   user: User;
   totalUsage: number;
-  todayUsage: number;
   thisWeekUsage: number;
   usageCount: number;
   lastUsed?: string;
@@ -53,16 +52,12 @@ export const Status: React.FC = () => {
 
       // Calculate stats for each user
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       const stats: UserStats[] = users?.map(userData => {
         const userLogs = usageLogs?.filter(log => log.user_id === userData.id) || [];
         
         const totalUsage = userLogs.reduce((sum, log) => sum + log.amount, 0);
-        const todayUsage = userLogs
-          .filter(log => new Date(log.created_at) >= today)
-          .reduce((sum, log) => sum + log.amount, 0);
         const thisWeekUsage = userLogs
           .filter(log => new Date(log.created_at) >= weekAgo)
           .reduce((sum, log) => sum + log.amount, 0);
@@ -72,7 +67,6 @@ export const Status: React.FC = () => {
         return {
           user: userData,
           totalUsage,
-          todayUsage,
           thisWeekUsage,
           usageCount,
           lastUsed
@@ -225,7 +219,7 @@ export const Status: React.FC = () => {
                   </button>
                 )}
               </div>
-              <Calendar className="h-8 w-8 text-orange-600" />
+              <Database className="h-8 w-8 text-orange-600" />
             </div>
           </div>
         </div>
@@ -247,9 +241,6 @@ export const Status: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Today's Usage
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       This Week
@@ -294,19 +285,6 @@ export const Status: React.FC = () => {
                         }`}>
                           {stat.user.is_active ? 'Active' : 'Inactive'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center">
-                          <span className="mr-2">{stat.todayUsage}</span>
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ 
-                                width: `${Math.min(100, (stat.todayUsage / stat.user.daily_limit) * 100)}%` 
-                              }}
-                            ></div>
-                          </div>
-                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {stat.thisWeekUsage}

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, UsageLog } from '../lib/supabase';
-import { User, Calendar, TrendingUp, Clock } from 'lucide-react';
+import { User, TrendingUp, Clock } from 'lucide-react';
 
 export const Profile: React.FC = () => {
   const { user } = useAuth();
   const [usageLogs, setUsageLogs] = useState<UsageLog[]>([]);
   const [stats, setStats] = useState({
     totalUsage: 0,
-    todayUsage: 0,
     thisWeekUsage: 0,
     usageCount: 0
   });
@@ -39,13 +38,9 @@ export const Profile: React.FC = () => {
 
       // Calculate statistics
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       const totalUsage = logs?.reduce((sum, log) => sum + log.amount, 0) || 0;
-      const todayUsage = logs?.filter(log => 
-        new Date(log.created_at) >= today
-      ).reduce((sum, log) => sum + log.amount, 0) || 0;
       const thisWeekUsage = logs?.filter(log => 
         new Date(log.created_at) >= weekAgo
       ).reduce((sum, log) => sum + log.amount, 0) || 0;
@@ -53,7 +48,6 @@ export const Profile: React.FC = () => {
 
       setStats({
         totalUsage,
-        todayUsage,
         thisWeekUsage,
         usageCount
       });
@@ -82,8 +76,6 @@ export const Profile: React.FC = () => {
     );
   }
 
-  const remainingLimit = user ? user.daily_limit - stats.todayUsage : 0;
-
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -103,16 +95,7 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-600">Today's Usage</span>
-              </div>
-              <div className="text-2xl font-bold text-blue-900">{stats.todayUsage}</div>
-              <div className="text-xs text-blue-600">Remaining: {remainingLimit}</div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-green-50 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingUp className="h-4 w-4 text-green-600" />
@@ -147,12 +130,6 @@ export const Profile: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Access Key</label>
               <div className="mt-1 p-3 bg-gray-50 rounded-md">
                 <code className="text-sm font-mono">{user?.access_key}</code>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Daily Limit</label>
-              <div className="mt-1 p-3 bg-gray-50 rounded-md">
-                <span className="text-sm">{user?.daily_limit} IPs per day</span>
               </div>
             </div>
             <div>

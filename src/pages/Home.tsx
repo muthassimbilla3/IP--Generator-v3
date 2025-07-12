@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, Proxy } from '../lib/supabase';
-import { Download, AlertTriangle, FileText, FileSpreadsheet, Copy, Zap } from 'lucide-react';
+import { Download, FileText, FileSpreadsheet, Copy, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
@@ -11,52 +11,8 @@ export const Home: React.FC = () => {
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
-  const [usageToday, setUsageToday] = useState(0);
   const [showGenerateAllModal, setShowGenerateAllModal] = useState(false);
   const [availableIPCount, setAvailableIPCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (user) {
-      fetchTodayUsage();
-    }
-  }, [user]);
-
-  const fetchTodayUsage = async () => {
-    if (!user) return;
-
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data, error } = await supabase
-        .from('usage_logs')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gte('created_at', today.toISOString());
-
-      if (error) throw error;
-
-      const total = data?.reduce((sum, log) => sum + log.amount, 0) || 0;
-      setUsageToday(total);
-    } catch (error) {
-      console.error('Error fetching usage:', error);
-    }
-  };
-
-  const validateAmount = (value: number): boolean => {
-    if (value < 1) {
-      toast.error('Please enter at least 1 IP');
-      return false;
-    }
-    if (!user) return false;
-    
-    const remaining = user.daily_limit - usageToday;
-    if (value > remaining) {
-      toast.error(`Daily limit exceeded! You can only get ${remaining} more IPs today.`);
-      return false;
-    }
-    return true;
-  };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -67,7 +23,11 @@ export const Home: React.FC = () => {
 
   const generateProxies = async () => {
     if (!user) return;
-    if (!validateAmount(amount)) return;
+    
+    if (amount < 1) {
+      toast.error('Please enter at least 1 IP');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -110,15 +70,14 @@ export const Home: React.FC = () => {
   };
 
   const handleGenerateAllClick = async () => {
-    if (!user || remainingLimit <= 0) return;
+    if (!user) return;
 
     try {
       // Check for available proxies first
       const { data: availableProxies, error } = await supabase
         .from('proxies')
         .select('*', { count: 'exact' })
-        .eq('is_used', false)
-        .limit(remainingLimit);
+        .eq('is_used', false);
 
       if (error) throw error;
 
@@ -136,7 +95,7 @@ export const Home: React.FC = () => {
   };
 
   const generateAllRemainingProxies = async () => {
-    if (!user || remainingLimit <= 0) return;
+    if (!user) return;
     
     setLoadingAll(true);
     try {
@@ -144,19 +103,12 @@ export const Home: React.FC = () => {
       const { data: availableProxies, error } = await supabase
         .from('proxies')
         .select('*')
-        .eq('is_used', false)
-        .limit(remainingLimit);
+        .eq('is_used', false);
 
       if (error) throw error;
 
       if (!availableProxies || availableProxies.length === 0) {
         toast.error('No IPs available');
-        setLoadingAll(false);
-        return;
-      }
-
-      if (availableProxies.length < remainingLimit) {
-        toast.error(`Not enough IPs available. Only ${availableProxies.length} IPs available.`);
         setLoadingAll(false);
         return;
       }
@@ -171,12 +123,6 @@ export const Home: React.FC = () => {
 
       if (!updatedProxies || updatedProxies.length === 0) {
         toast.error('Other users are using these IPs. Please try again.');
-        setLoadingAll(false);
-        return;
-      }
-
-      if (updatedProxies.length < remainingLimit) {
-        toast.error(`Not enough IPs available. Only ${updatedProxies.length} IPs available.`);
         setLoadingAll(false);
         return;
       }
@@ -320,29 +266,12 @@ export const Home: React.FC = () => {
     }
   };
 
-  const remainingLimit = user ? user.daily_limit - usageToday : 0;
-
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">IP Proxy Generator</h1>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-sm text-blue-600 font-medium">Today's Usage</div>
-              <div className="text-2xl font-bold text-blue-900">{usageToday}</div>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-sm text-green-600 font-medium">Remaining Limit</div>
-              <div className="text-2xl font-bold text-green-900">{remainingLimit}</div>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-4">
-              <div className="text-sm text-purple-600 font-medium">Daily Limit</div>
-              <div className="text-2xl font-bold text-purple-900">{user?.daily_limit}</div>
-            </div>
-          </div>
-
           <div className="flex items-center space-x-4 mb-6">
             <div>
               <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
@@ -352,7 +281,6 @@ export const Home: React.FC = () => {
                 type="number"
                 id="amount"
                 min="1"
-                max={Math.min(remainingLimit, 100)}
                 value={amount}
                 onChange={handleAmountChange}
                 className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -361,7 +289,7 @@ export const Home: React.FC = () => {
             <div className="pt-6 flex space-x-3">
               <button
                 onClick={generateProxies}
-                disabled={loading || loadingAll || remainingLimit <= 0}
+                disabled={loading || loadingAll}
                 className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? (
@@ -374,38 +302,25 @@ export const Home: React.FC = () => {
                 )}
               </button>
 
-              {remainingLimit > 0 && (
-                <button
-                  onClick={handleGenerateAllClick}
-                  disabled={loading || loadingAll || remainingLimit <= 0}
-                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                >
-                  {loadingAll ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Generating All...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      <span>Generate All ({remainingLimit})</span>
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={handleGenerateAllClick}
+                disabled={loading || loadingAll}
+                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              >
+                {loadingAll ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Generating All...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    <span>Generate All Available</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
-
-          {remainingLimit <= 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-              <div className="flex items-center">
-                <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
-                <p className="text-red-700 text-sm">
-                  Your daily limit has been reached. Please try again tomorrow.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         {proxies.length > 0 && (
@@ -470,33 +385,20 @@ export const Home: React.FC = () => {
                   সমস্ত IP জেনারেট করুন
                 </h3>
                 
-                {availableIPCount !== null && availableIPCount < remainingLimit ? (
+                {availableIPCount !== null ? (
                   <>
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-                      <div className="flex items-start">
-                        <AlertTriangle className="h-5 w-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                        <div className="text-red-700 text-sm text-left">
-                          <p className="font-semibold mb-1">পর্যাপ্ত IP নেই!</p>
-                          <p>বর্তমানে শুধুমাত্র <span className="font-bold">{availableIPCount}টি</span> IP পাওয়া যাচ্ছে।</p>
-                          <p className="mt-1">আপনি কি এই {availableIPCount}টি IP জেনারেট করতে চান?</p>
-                        </div>
-                      </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                      <p className="text-blue-700 text-sm">
+                        বর্তমানে <span className="font-bold">{availableIPCount}টি</span> IP পাওয়া যাচ্ছে।
+                      </p>
+                      <p className="text-blue-700 text-sm mt-1">আপনি কি এই সব IP জেনারেট করতে চান?</p>
                     </div>
                   </>
                 ) : (
                   <p className="text-sm text-gray-500 mb-6">
-                    আপনি কি নিশ্চিত যে আপনি <span className="font-semibold text-green-600">{remainingLimit}টি</span> IP জেনারেট করতে চান?
+                    আপনি কি নিশ্চিত যে আপনি সব উপলব্ধ IP জেনারেট করতে চান?
                   </p>
                 )}
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-6">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-4 w-4 text-yellow-400 mr-2 flex-shrink-0" />
-                    <p className="text-yellow-700 text-sm text-left">
-                      <strong>সতর্কতা:</strong> এই অপারেশনটি আপনার আজকের বাকি থাকা সমস্ত IP লিমিট ব্যবহার করে ফেলবে।
-                    </p>
-                  </div>
-                </div>
 
                 <div className="flex space-x-3 justify-center">
                   <button

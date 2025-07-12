@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, UploadHistory, User } from '../lib/supabase';
-import { Upload, Trash2, Users, Settings, Plus, Minus, Edit2, Key, RotateCcw, Database } from 'lucide-react';
+import { Upload, Trash2, Users, Edit2, Key, RotateCcw, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LimitWarningModal from '../components/LimitWarningModal';
 import UploadProgressModal from '../components/UploadProgressModal';
@@ -16,14 +16,12 @@ export const Admin: React.FC = () => {
   const [newUser, setNewUser] = useState({
     username: '',
     accessKey: '',
-    role: 'user' as 'admin' | 'manager' | 'user',
-    dailyLimit: 500
+    role: 'user' as 'admin' | 'manager' | 'user'
   });
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     username: '',
-    accessKey: '',
-    dailyLimit: 0
+    accessKey: ''
   });
   const [totalProxies, setTotalProxies] = useState(0);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
@@ -232,8 +230,7 @@ export const Admin: React.FC = () => {
       const { error } = await supabase.from('users').insert({
         username: newUser.username,
         access_key: newUser.accessKey,
-        role: newUser.role,
-        daily_limit: newUser.dailyLimit
+        role: newUser.role
       });
 
       if (error) throw error;
@@ -242,30 +239,12 @@ export const Admin: React.FC = () => {
       setNewUser({
         username: '',
         accessKey: '',
-        role: 'user',
-        dailyLimit: 500
+        role: 'user'
       });
       fetchUsers();
     } catch (error) {
       toast.error('Error creating user');
       console.error('Error creating user:', error);
-    }
-  };
-
-  const updateUserLimit = async (userId: string, newLimit: number) => {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ daily_limit: newLimit })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      toast.success('User limit updated');
-      fetchUsers();
-    } catch (error) {
-      toast.error('Error updating limit');
-      console.error('Error updating user limit:', error);
     }
   };
 
@@ -290,8 +269,7 @@ export const Admin: React.FC = () => {
     setEditingUser(userData.id);
     setEditForm({
       username: userData.username,
-      accessKey: userData.access_key,
-      dailyLimit: userData.daily_limit
+      accessKey: userData.access_key
     });
   };
 
@@ -299,8 +277,7 @@ export const Admin: React.FC = () => {
     setEditingUser(null);
     setEditForm({
       username: '',
-      accessKey: '',
-      dailyLimit: 0
+      accessKey: ''
     });
   };
 
@@ -311,7 +288,6 @@ export const Admin: React.FC = () => {
         .update({
           username: editForm.username,
           access_key: editForm.accessKey,
-          daily_limit: editForm.dailyLimit
         })
         .eq('id', userId);
 
@@ -520,14 +496,6 @@ export const Admin: React.FC = () => {
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
-              <input
-                type="number"
-                placeholder="Daily Limit"
-                value={newUser.dailyLimit}
-                onChange={(e) => setNewUser({...newUser, dailyLimit: parseInt(e.target.value)})}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
             </div>
             <button
               type="submit"
@@ -550,9 +518,6 @@ export const Admin: React.FC = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Daily Limit
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -603,18 +568,6 @@ export const Admin: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {editingUser === userData.id ? (
-                        <input
-                          type="number"
-                          value={editForm.dailyLimit}
-                          onChange={(e) => setEditForm({...editForm, dailyLimit: parseInt(e.target.value)})}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm w-20"
-                        />
-                      ) : (
-                        userData.daily_limit
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
                         onClick={() => toggleUserStatus(userData.id, userData.is_active)}
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -634,14 +587,14 @@ export const Admin: React.FC = () => {
                             className="text-green-600 hover:text-green-800"
                             title="Save changes"
                           >
-                            <Plus size={16} />
+                            ✓
                           </button>
                           <button
                             onClick={cancelEdit}
                             className="text-gray-600 hover:text-gray-800"
                             title="Cancel"
                           >
-                            <Minus size={16} />
+                            ✕
                           </button>
                         </div>
                       ) : (
