@@ -28,16 +28,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const AppRoutes: React.FC = () => {
+  const { user } = useAuth();
+
   return (
     <Routes>
       <Route path="/" element={
         <ProtectedRoute>
-          <Home />
+          {user?.role === 'user' ? <Home /> : <Navigate to="/admin" replace />}
         </ProtectedRoute>
       } />
       <Route path="/profile" element={
         <ProtectedRoute>
-          <Profile />
+          {user?.role === 'user' ? <Profile /> : <Navigate to="/admin" replace />}
         </ProtectedRoute>
       } />
       <Route path="/admin" element={
