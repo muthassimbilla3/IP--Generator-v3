@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase, User, UsageLog } from '../lib/supabase';
 import { Users, Activity, TrendingUp, Calendar, Database, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import QuickLimitSetter from '../components/QuickLimitSetter';
 
 interface UserStats {
   user: User;
@@ -178,17 +177,6 @@ export const Status: React.FC = () => {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">System Status</h1>
-
-        {/* Quick Limit Setter - Only for Admin and Manager */}
-        {(user?.role === 'admin' || user?.role === 'manager') && (
-          <div className="mb-6 flex justify-end">
-            <QuickLimitSetter 
-              users={userStats.map(stat => stat.user)} 
-              onUpdate={fetchUserStats}
-              userRole={user.role}
-            />
-          </div>
-        )}
 
         {/* System Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
